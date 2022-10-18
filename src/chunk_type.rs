@@ -1,8 +1,7 @@
-#![allow(unused_variables)]
 use std::{str::FromStr, str::from_utf8, fmt::{Display, self}};
 
 #[derive(Debug, Default, PartialEq, Eq)]
-struct ChunkType {
+pub struct ChunkType {
     chunks: [u8;4]
 }
 
@@ -30,7 +29,7 @@ impl Display for ChunkType {
 }
 
 impl ChunkType {
-    fn bytes(&self) -> [u8; 4] {
+    pub fn bytes(&self) -> [u8; 4] {
         self.chunks
     }
     fn is_valid(&self) -> bool {
