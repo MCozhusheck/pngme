@@ -1,5 +1,6 @@
 use std::fmt::{self, Display};
-use crate::chunk::Chunk;
+use std::io::{BufReader, Read, BufRead};
+use crate::chunk::{Chunk, self};
 use crate::chunk_type::ChunkType;
 
 pub type Error = &'static str;
@@ -39,13 +40,24 @@ impl Png {
 impl TryFrom<&[u8]> for Png {
     type Error = Error;
     fn try_from(value: &[u8]) -> Result<Self, Error> {
-        let mut iter = value.iter();
-        if let Some(header_bytes) = iter.next() {
-            if header_bytes.eq(&Png::STANDARD_HEADER) {return Err("invalid header")}
-        } else {
-            return Err("empty data")
-        };
+        let mut reader = BufReader::with_capacity(value.len() as usize, value);
+        let mut header: [u8; 8] = [0; 8];
+        reader.read_exact(&mut header);
+        if !header.eq(&Png::STANDARD_HEADER) { return Err("Invalid header")}
+        let mut chunks = Vec::<Chunk>::new();
+        while reader.fill_buf().map(|b| !b.is_empty()).unwrap(){
+            let mut length_bytes: [u8; 4] = [0; 4];
+            reader.read_exact(&mut length_bytes);
+            let length = u32::from_be_bytes(length_bytes);
+            let total_data_length = 8 + length;
+            let mut data: Vec<u8> = Vec::with_capacity(total_data_length as usize);
+            unsafe { data.set_len(length as usize) }
+            reader.read_exact(&mut data);
+            let data: &[u8] = &[length_bytes, data.try_into().unwrap()].concat();
 
+            chunks.push(Chunk::try_from(data).unwrap())
+        }
+        Ok(Png::from_chunks(chunks))
     }
 }
 
