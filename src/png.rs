@@ -33,7 +33,7 @@ impl Png {
         self.data.iter().find(|x| x.chunk_type().to_string().eq(chunk_type))
     }
     fn as_bytes(&self) -> Vec<u8> {
-        self.data.iter().flat_map(|x| x.as_bytes()).collect()
+        Png::STANDARD_HEADER.to_vec().iter().copied().chain(self.data.iter().flat_map(|x| x.as_bytes())).collect()
     }
 }
 
@@ -51,9 +51,9 @@ impl TryFrom<&[u8]> for Png {
             let length = u32::from_be_bytes(length_bytes);
             let total_data_length = 8 + length;
             let mut data: Vec<u8> = Vec::with_capacity(total_data_length as usize);
-            unsafe { data.set_len(length as usize) }
+            unsafe { data.set_len(total_data_length as usize) }
             reader.read_exact(&mut data);
-            let data: &[u8] = &[length_bytes, data.try_into().unwrap()].concat();
+            let data: &[u8] = &[&length_bytes[..], &data[..]].concat();
 
             chunks.push(Chunk::try_from(data).unwrap())
         }
