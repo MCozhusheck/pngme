@@ -1,24 +1,30 @@
-use std::{str::FromStr, str::from_utf8, fmt::{Display, self}};
+use std::{
+    fmt::{self, Display},
+    str::from_utf8,
+    str::FromStr,
+};
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct ChunkType {
-    chunks: [u8;4]
+    chunks: [u8; 4],
 }
 
-impl TryFrom<[u8; 4]> for ChunkType{
+impl TryFrom<[u8; 4]> for ChunkType {
     type Error = &'static str;
     fn try_from(value: [u8; 4]) -> Result<Self, Self::Error> {
         Ok(ChunkType { chunks: value })
     }
 }
 
-impl FromStr for ChunkType{
+impl FromStr for ChunkType {
     type Err = &'static str;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.len() != 4 || !s.chars().all(|x| x.is_alphabetic()) {
             return Err("Invalid input");
         }
-        Ok(ChunkType { chunks: s.as_bytes().try_into().unwrap() })
+        Ok(ChunkType {
+            chunks: s.as_bytes().try_into().unwrap(),
+        })
     }
 }
 
@@ -32,19 +38,19 @@ impl ChunkType {
     pub fn bytes(&self) -> [u8; 4] {
         self.chunks
     }
-    fn is_valid(&self) -> bool {
+    pub fn is_valid(&self) -> bool {
         self.chunks[2].is_ascii_uppercase()
     }
-    fn is_critical(&self) -> bool {
+    pub fn is_critical(&self) -> bool {
         self.chunks[0].is_ascii_uppercase()
     }
-    fn is_public(&self) -> bool {
+    pub fn is_public(&self) -> bool {
         self.chunks[1].is_ascii_uppercase()
     }
-    fn is_reserved_bit_valid(&self) -> bool {
+    pub fn is_reserved_bit_valid(&self) -> bool {
         self.is_valid()
     }
-    fn is_safe_to_copy(&self) -> bool {
+    pub fn is_safe_to_copy(&self) -> bool {
         self.chunks[3].is_ascii_lowercase()
     }
 }
