@@ -5,7 +5,7 @@ use std::{
     string::FromUtf8Error,
 };
 
-use crate::chunk_type::ChunkType;
+use crate::chunk_type::{ChunkType, ChunkTypeError};
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct Chunk {
     length: u32,
@@ -13,21 +13,43 @@ pub struct Chunk {
     data: Vec<u8>,
     crc: u32,
 }
+#[derive(thiserror::Error, Debug, Clone)]
+pub enum ChunkError {
+    #[error("I/O Error.")]
+    IOError(String),
+    #[error("Invalid CRC sum.")]
+    InvalidCrcSum,
+    #[error("Invalid Chunk Type.")]
+    InvalidChunkType(ChunkTypeError),
+}
+
+impl std::convert::From<std::io::Error> for ChunkError {
+    fn from(err: std::io::Error) -> Self {
+        match err {
+            _ => ChunkError::IOError(err.to_string()),
+        }
+    }
+}
+
+impl std::convert::From<ChunkTypeError> for ChunkError {
+    fn from(err: ChunkTypeError) -> Self {
+        ChunkError::InvalidChunkType(err)
+    }
+}
 
 impl TryFrom<&[u8]> for Chunk {
-    type Error = &'static str;
+    type Error = ChunkError;
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
         let mut reader = BufReader::with_capacity(value.len() as usize, value);
         let mut length: [u8; 4] = [0; 4];
         let mut chunk_type: [u8; 4] = [0; 4];
         let mut crc_bytes: [u8; 4] = [0; 4];
-        reader.read_exact(&mut length);
+        reader.read_exact(&mut length)?;
         let length = u32::from_be_bytes(length);
-        let mut data: Vec<u8> = Vec::with_capacity(length as usize);
-        unsafe { data.set_len(length as usize) }
-        reader.read_exact(&mut chunk_type);
-        reader.read_exact(&mut data);
-        reader.read_exact(&mut crc_bytes);
+        let mut data: Vec<u8> = vec![0; length as usize];
+        reader.read_exact(&mut chunk_type)?;
+        reader.read_exact(&mut data)?;
+        reader.read_exact(&mut crc_bytes)?;
         let chunk_type = ChunkType::try_from(chunk_type)?;
         let crc = u32::from_be_bytes(crc_bytes);
         let data_with_chunk_type: Vec<u8> = chunk_type
@@ -38,7 +60,7 @@ impl TryFrom<&[u8]> for Chunk {
             .collect();
         let calculated_crc = crc::crc32::checksum_ieee(data_with_chunk_type.as_slice());
         if crc != calculated_crc {
-            return Err("Invalid crc sum");
+            return Err(ChunkError::InvalidCrcSum);
         }
         Ok(Chunk {
             length,

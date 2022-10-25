@@ -9,18 +9,29 @@ pub struct ChunkType {
     chunks: [u8; 4],
 }
 
+#[derive(thiserror::Error, Debug, Clone)]
+pub enum ChunkTypeError {
+    #[error("Invalid chunk type length.")]
+    InvalidLength,
+    #[error("Invalid chunk type data.")]
+    NonAlphabeticData,
+}
+
 impl TryFrom<[u8; 4]> for ChunkType {
-    type Error = &'static str;
+    type Error = ChunkTypeError;
     fn try_from(value: [u8; 4]) -> Result<Self, Self::Error> {
         Ok(ChunkType { chunks: value })
     }
 }
 
 impl FromStr for ChunkType {
-    type Err = &'static str;
+    type Err = ChunkTypeError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.len() != 4 || !s.chars().all(|x| x.is_alphabetic()) {
-            return Err("Invalid input");
+        if s.len() != 4 {
+            return Err(ChunkTypeError::InvalidLength);
+        }
+        if !s.chars().all(|x| x.is_alphabetic()) {
+            return Err(ChunkTypeError::NonAlphabeticData);
         }
         Ok(ChunkType {
             chunks: s.as_bytes().try_into().unwrap(),
