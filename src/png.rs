@@ -1,4 +1,4 @@
-use crate::chunk::{self, Chunk, ChunkError};
+use crate::chunk::Chunk;
 use crate::chunk_type::{ChunkType, ChunkTypeError};
 use std::fmt::{self, Display};
 use std::io::{BufRead, BufReader, Read};
@@ -11,8 +11,6 @@ pub enum PngError {
     ChunkNotFound,
     #[error("Invalid header")]
     InvalidHeader,
-    #[error("Invalid Chunk")]
-    InvalidChunk(ChunkError),
     #[error("Invalid Chunk Type.")]
     InvalidChunkType(ChunkTypeError),
 }
@@ -30,20 +28,20 @@ impl std::convert::From<ChunkTypeError> for PngError {
         PngError::InvalidChunkType(err)
     }
 }
-struct Png {
+pub struct Png {
     data: Vec<Chunk>,
 }
 
 impl Png {
     pub const STANDARD_HEADER: [u8; 8] = [137, 80, 78, 71, 13, 10, 26, 10];
 
-    fn from_chunks(chunks: Vec<Chunk>) -> Png {
+    pub fn from_chunks(chunks: Vec<Chunk>) -> Png {
         Png { data: chunks }
     }
-    fn append_chunk(&mut self, chunk: Chunk) {
+    pub fn append_chunk(&mut self, chunk: Chunk) {
         self.data.push(chunk)
     }
-    fn remove_chunk(&mut self, chunk_type: &str) -> Result<Chunk, PngError> {
+    pub fn remove_chunk(&mut self, chunk_type: &str) -> Result<Chunk, PngError> {
         match self
             .data
             .iter()
@@ -53,18 +51,18 @@ impl Png {
             None => Err(PngError::ChunkNotFound),
         }
     }
-    fn header(&self) -> &[u8; 8] {
+    pub fn header(&self) -> &[u8; 8] {
         &Png::STANDARD_HEADER
     }
-    fn chunks(&self) -> &[Chunk] {
+    pub fn chunks(&self) -> &[Chunk] {
         &self.data
     }
-    fn chunk_by_type(&self, chunk_type: &str) -> Option<&Chunk> {
+    pub fn chunk_by_type(&self, chunk_type: &str) -> Option<&Chunk> {
         self.data
             .iter()
             .find(|x| x.chunk_type().to_string().eq(chunk_type))
     }
-    fn as_bytes(&self) -> Vec<u8> {
+    pub fn as_bytes(&self) -> Vec<u8> {
         Png::STANDARD_HEADER
             .to_vec()
             .iter()
