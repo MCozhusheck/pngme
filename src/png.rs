@@ -1,4 +1,4 @@
-use crate::chunk::{ Chunk, ChunkError};
+use crate::chunk::Chunk;
 use crate::chunk_type::{ChunkType, ChunkTypeError};
 use std::fmt::{self, Display};
 use std::io::{BufRead, BufReader, Read};

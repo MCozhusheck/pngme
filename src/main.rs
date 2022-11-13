@@ -1,77 +1,123 @@
 mod args;
 mod chunk;
 mod chunk_type;
-mod commands;
 mod png;
 
 pub type Error = Box<dyn std::error::Error>;
 pub type Result<T> = std::result::Result<T, Error>;
 use clap::Parser;
 use std::ffi::OsStr;
+use std::ffi::OsString;
 use std::fs;
 use std::str::FromStr;
 
-
-use crate::args::{Cli, Commands::{Encode, Decode, Remove, Print}};
-use crate::png::Png;
+use crate::args::{
+    Cli,
+    Commands::{Decode, Encode, Print, Remove},
+};
 use crate::chunk::Chunk;
 use crate::chunk_type::ChunkType;
+use crate::png::Png;
+
+fn read_path(path: &Option<OsString>) -> &str {
+    path.as_deref()
+        .unwrap_or_else(|| OsStr::new(""))
+        .to_str()
+        .unwrap()
+}
+
+fn read_chunk_type(chunk_type: &Option<OsString>) -> &str {
+    chunk_type
+        .as_deref()
+        .unwrap_or_else(|| OsStr::new(""))
+        .to_str()
+        .unwrap()
+}
+
+fn read_message(message: Option<OsString>) -> Vec<u8> {
+    message
+        .as_deref()
+        .unwrap_or_else(|| OsStr::new(""))
+        .to_str()
+        .unwrap()
+        .as_bytes()
+        .to_vec()
+}
 
 fn main() {
     let args = Cli::parse();
 
     match args.command {
-        Encode { path, chunk, message } => {
-            let path = path.as_deref().unwrap_or_else(|| OsStr::new(""));
-            let chunk_type = chunk.as_deref().unwrap().to_str().unwrap();
-            let message = message.as_deref().unwrap().to_str().unwrap().as_bytes().to_vec();
+        Encode {
+            path,
+            chunk,
+            message,
+        } => {
+            let path = read_path(&path);
+            let chunk_type = read_chunk_type(&chunk);
+            let message = read_message(message);
             let data = match fs::read(path) {
                 Ok(data) => data,
                 Err(_) => {
-                    fs::write(path, Png::STANDARD_HEADER);
-                    fs::read(path).unwrap()
+                    panic!("Failed to read file with path: {}", path)
                 }
             };
 
-            let mut png = Png::try_from(data.as_ref()).unwrap();
-            png.append_chunk(Chunk::new(ChunkType::from_str(chunk_type).unwrap(), message));
-        },
+            let mut png = Png::try_from(data.as_ref()).expect("Failed to read png file");
+            let chunk_type = match ChunkType::from_str(chunk_type) {
+                Ok(data) => data,
+                Err(_) => panic!("Invalid chunk type"),
+            };
+            png.append_chunk(Chunk::new(chunk_type, message));
+            fs::write(path, png.as_bytes()).expect("Failed to write to file");
+        }
         Decode { path, chunk } => {
-            let path = path.as_deref().unwrap_or_else(|| OsStr::new(""));
-            let chunk_type = chunk.as_deref().unwrap().to_str().unwrap();
+            let path = read_path(&path);
+            let chunk_type = read_chunk_type(&chunk);
 
             let data = match fs::read(path) {
                 Ok(data) => data,
-                Err(_) => panic!("File does not exists!")
+                Err(_) => panic!("Failed to read file"),
             };
 
-            let png = Png::try_from(data.as_ref()).unwrap();
-            print!("{:}", png.chunk_by_type(chunk_type).unwrap())
+            let png = Png::try_from(data.as_ref()).expect("Failed to read png file");
+            let decoded_chunk = match png.chunk_by_type(chunk_type) {
+                Some(data) => data,
+                None => panic!("Chunk {} does not exists in this file", chunk_type),
+            };
+            print!(
+                "Chunk: {} has secret message: {}",
+                chunk_type, decoded_chunk
+            )
         }
         Remove { path, chunk } => {
-            let path = path.as_deref().unwrap_or_else(|| OsStr::new(""));
-            let chunk_type = chunk.as_deref().unwrap().to_str().unwrap();
+            let path = read_path(&path);
+            let chunk_type = read_chunk_type(&chunk);
 
             let data = match fs::read(path) {
                 Ok(data) => data,
-                Err(_) => panic!("File does not exists!")
+                Err(_) => panic!("Failed to read file"),
             };
-            let mut png = Png::try_from(data.as_ref()).unwrap();
+            let mut png = Png::try_from(data.as_ref()).expect("Failed to read png file");
             match png.remove_chunk(chunk_type) {
-                Ok(chunk) => print!("{:?}", chunk),
-                Err(_) => print!("Can't delete chunk")
+                Ok(chunk) => print!(
+                    "deleted chunk: {} with secret message: {}",
+                    chunk_type, chunk
+                ),
+                Err(_) => print!("Can't delete chunk"),
             }
-        },
+            fs::write(path, png.as_bytes()).expect("Failed to write to file");
+        }
         Print { path } => {
-            let path = path.as_deref().unwrap_or_else(|| OsStr::new(""));
+            let path = read_path(&path);
 
             let data = match fs::read(path) {
                 Ok(data) => data,
-                Err(_) => panic!("File does not exists!")
+                Err(_) => panic!("Failed to read file"),
             };
-            let png = Png::try_from(data.as_ref()).unwrap();
+            let png = Png::try_from(data.as_ref()).expect("Failed to read png file");
 
             println!("{}", png)
-        },
+        }
     }
 }

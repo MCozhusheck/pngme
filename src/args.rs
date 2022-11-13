@@ -12,7 +12,7 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
-
+    /// Encodes secret message into PNG file
     Encode {
         #[arg(required = true)]
         path: Option<OsString>,
@@ -24,6 +24,7 @@ pub enum Commands {
         message: Option<OsString>,
     },
 
+    /// Decodes secret message in given chunk
     Decode {
         #[arg(required = true)]
         path: Option<OsString>,
@@ -32,6 +33,7 @@ pub enum Commands {
         chunk: Option<OsString>,
     },
 
+    /// Deletes secret message
     Remove {
         #[arg(required = true)]
         path: Option<OsString>,
@@ -40,8 +42,9 @@ pub enum Commands {
         chunk: Option<OsString>,
     },
 
+    /// Prints whole file
     Print {
         #[arg(required = true)]
         path: Option<OsString>,
-    }
+    },
 }
